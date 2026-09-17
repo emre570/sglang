@@ -7,7 +7,6 @@ import torch
 from torch.nn import Module
 from torch.nn.parameter import Parameter
 
-from sglang.srt.distributed import get_tp_group
 from sglang.srt.distributed.device_communicators.pynccl_allocator import (
     use_symmetric_memory,
 )
@@ -15,6 +14,7 @@ from sglang.srt.layers.dp_attention import is_allocation_symmetric
 from sglang.srt.layers.moe.utils import RoutingMethodType
 from sglang.srt.runtime_context import (
     get_exec,
+    get_parallel,
     get_platform,
 )
 from sglang.srt.utils import (
@@ -381,7 +381,7 @@ class Mxfp4FlashinferTrtllmMoEMethod:
         )
 
         with use_symmetric_memory(
-            get_tp_group(), disabled=not is_allocation_symmetric()
+            get_parallel().tp_group, disabled=not is_allocation_symmetric()
         ):
             num_tokens = x_quant.shape[0]
             out_hidden_size = (

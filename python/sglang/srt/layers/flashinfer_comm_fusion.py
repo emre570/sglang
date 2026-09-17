@@ -6,12 +6,6 @@ import torch
 import torch.distributed as dist
 from torch.distributed import ProcessGroup
 
-from sglang.srt.distributed import (
-    get_attn_tp_group,
-    get_moe_ep_group,
-    get_moe_tp_group,
-    get_tp_group,
-)
 from sglang.srt.distributed.parallel_state import in_the_same_node_as
 from sglang.srt.runtime_context import (
     get_exec,
@@ -335,7 +329,7 @@ def _preflight_check_workspace_memory(
 
     group = cpu_group
     if group is None:
-        tp_group = get_tp_group()
+        tp_group = get_parallel().tp_group
         if tp_group.world_size <= 1:
             return True
         group = tp_group.cpu_group
@@ -660,7 +654,7 @@ def _sync_allreduce_unavailable_across_tp():
     try:
         import torch.distributed as dist
 
-        tp_group = get_tp_group()
+        tp_group = get_parallel().tp_group
         if tp_group.world_size <= 1:
             return
         flag = torch.tensor(
@@ -697,16 +691,16 @@ def ensure_workspace_initialized(
     if use_attn_tp_group:
         world_size = get_parallel().attn_tp_size
         rank = get_parallel().attn_tp_rank
-        coordinator = get_attn_tp_group()
+        coordinator = get_parallel().attn_tp_group
     else:
         if get_parallel().moe_ep_size > 1:
             world_size = get_parallel().moe_ep_size
             rank = get_parallel().moe_ep_rank
-            coordinator = get_moe_ep_group()
+            coordinator = get_parallel().moe_ep_group
         else:
             world_size = get_parallel().moe_tp_size
             rank = get_parallel().moe_tp_rank
-            coordinator = get_moe_tp_group()
+            coordinator = get_parallel().moe_tp_group
 
     # Always pass the coordinator's groups: flashinfer >=0.6.10 reads the
     # rendezvous group from `group=...` (falling back to WORLD when None),

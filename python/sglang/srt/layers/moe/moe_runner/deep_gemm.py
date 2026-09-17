@@ -17,7 +17,6 @@ from sglang.kernels.ops.quantization import per_token_group_quant
 
 logger = logging.getLogger(__name__)
 
-from sglang.srt.distributed import get_tp_group
 from sglang.srt.distributed.device_communicators.pynccl_allocator import (
     use_symmetric_memory,
 )
@@ -559,7 +558,7 @@ class DeepGemmRunnerCore(MoeRunnerCore):
         # symmetric path. Only this final output enters the pool; intermediate
         # buffers stay on the default allocator to bound pool occupancy.
         with use_symmetric_memory(
-            get_tp_group(), disabled=not is_allocation_symmetric()
+            get_parallel().tp_group, disabled=not is_allocation_symmetric()
         ):
             down_output = torch.empty(
                 (all_tokens, K),
@@ -640,7 +639,7 @@ class DeepGemmRunnerCore(MoeRunnerCore):
 
         # GroupGemm-2: (M, N/2) (E, K, N/2) -> (M, K)
         with use_symmetric_memory(
-            get_tp_group(), disabled=not is_allocation_symmetric()
+            get_parallel().tp_group, disabled=not is_allocation_symmetric()
         ):
             down_output = torch.empty(
                 (all_tokens, K),
@@ -830,7 +829,7 @@ class DeepGemmRunnerCore(MoeRunnerCore):
             )
 
         with use_symmetric_memory(
-            get_tp_group(), disabled=not is_allocation_symmetric()
+            get_parallel().tp_group, disabled=not is_allocation_symmetric()
         ):
             down_output = torch.empty(
                 (num_groups, m, n), device=hidden_states_device, dtype=torch.bfloat16
@@ -923,7 +922,7 @@ class DeepGemmRunnerCore(MoeRunnerCore):
         n = w2_weight.shape[1]
 
         with use_symmetric_memory(
-            get_tp_group(), disabled=not is_allocation_symmetric()
+            get_parallel().tp_group, disabled=not is_allocation_symmetric()
         ):
             down_output = torch.empty(
                 (num_groups, m, n), device=hidden_states_device, dtype=torch.bfloat16
@@ -1235,7 +1234,9 @@ def post_permute_deep_gemm_to_standard(
 
     src2dst = running_state["src2dst"]
 
-    with use_symmetric_memory(get_tp_group(), disabled=not is_allocation_symmetric()):
+    with use_symmetric_memory(
+        get_parallel().tp_group, disabled=not is_allocation_symmetric()
+    ):
         output = torch.empty(
             hidden_states_shape, dtype=hidden_states_dtype, device=hidden_states_device
         )

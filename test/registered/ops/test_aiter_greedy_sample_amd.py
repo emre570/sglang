@@ -22,7 +22,7 @@ register_amd_ci(est_time=60, suite="stage-b-test-1-gpu-small-amd")
 
 
 def _mock_global_server_args(backend="pytorch"):
-    from sglang.srt.layers import sampler as sampler_mod
+    from sglang.srt.runtime_context import get_parallel
     from sglang.srt.server_args import (
         ServerArgs,
         set_global_server_args_for_scheduler,
@@ -37,7 +37,9 @@ def _mock_global_server_args(backend="pytorch"):
     class _DummyTPGroup:
         device_group = None
 
-    sampler_mod.get_tp_group = lambda: _DummyTPGroup()
+    # `Sampler.__init__` asks the context for the group; state one, since this
+    # process has no distributed init. Left entered for the test's lifetime.
+    get_parallel().override(tp_group=_DummyTPGroup()).__enter__()
     from sglang.srt.runtime_context import get_flags
 
     get_flags().dp.enabled = False
